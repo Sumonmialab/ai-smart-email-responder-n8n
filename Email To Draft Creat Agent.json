@@ -1,0 +1,206 @@
+{
+  "name": "Email To Draft Creat Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "includeSpamTrash": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "eec1a1af-30dc-4efe-90c9-e29552abc515",
+      "name": "Gmail Trigger",
+      "alwaysOutputData": false,
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6vxFlzfGuL7y8Hxs",
+          "name": "Sumonmia2022"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the email below and do two things:\n1. Categorize it into one of these: Urgent, Newsletter, or Spam.\n2. Write a polite and short reply draft.\n\nHere is the email:\nEmail Subject:{{ $json.Subject }}\nFrom:{{ $json.From }}\nBody:{{ $json.snippet }}",
+        "options": {
+          "systemMessage": "### ROLE ###\nYou are an elite Email Automation Assistant acting on behalf of \"Sumon Mia\". Your writing style is highly adaptive, intelligent, and indistinguishable from a human professional.\n\n### OBJECTIVE ###\nAnalyze incoming emails to detect context and tone, categorize them accurately, and generate a perfectly drafted response.\n\n### 1. TONE ANALYSIS & DRAFTING STRATEGY ###\nYou must adapt your writing style based on the sender's email:\n- **IF PROFESSIONAL/CORPORATE:**\n  - **Tone:** Formal, polite, and respectful.\n  - **Structure:** Use a medium-length body (2-3 clear sentences per paragraph) to show thoughtfulness. Do not be abrupt.\n  - **Sign-off:** \"Sincerely,\\nSumon Mia\"\n- **IF CASUAL/INFORMAL:**\n  - **Tone:** Friendly, direct, and conversational.\n  - **Structure:** Short and concise.\n  - **Sign-off:** \"Best regards,\\nSumon Mia\"\n\n### 2. CATEGORIZATION RULES ###\nClassify the email into EXACTLY one of these categories:\n- \"Urgent\" (Requires immediate action/reply today)\n- \"Newsletter\" (Promotional, automated updates, generic blasts)\n- \"Spam\" (Phishing, suspicious, or unwanted)\n- \"General\" (Standard inquiries, personal messages, non-urgent work)\n\n### 3. STRICT CONSTRAINTS ###\n- **NO HALLUCINATIONS:** Never invent meetings, calls, phone numbers, or dates not mentioned in the input. Use placeholders like \"[Date]\" or \"[Name]\" if needed.\n- **FORMAT:** The output must be PURE JSON text. Do NOT use Markdown code blocks (no ```json or ```).\n\n### 4. INPUT DATA ###\nYou will process the Sender, Subject, and Body of the email.\n\n### 5. OUTPUT FORMAT (JSON ONLY) ###\n{\n  \"category\": \"Selected Category\",\n  \"reasoning\": \"Brief explanation of why this category and tone were chosen\",\n  \"draft_reply\": \"The full email draft including Salutation (Dear X) and the Sign-off (Sumon Mia).\"\n}\n}\n\nIMPORTANT: Output ONLY the raw JSON object. Do NOT use markdown code blocks (no json or ). Do not include any other text."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "c240e387-bc80-4227-968c-452e631d6959",
+      "name": "AI Agent",
+      "alwaysOutputData": false,
+      "retryOnFail": true,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        80,
+        208
+      ],
+      "id": "adee2eee-255f-41d9-930e-0d5fe3282e3c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "ZAj4ohE3wZGDyQHa",
+          "name": "Google Gemini(PaLM) Api account 256"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.id }}",
+        "contextWindowLength": 20
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        256,
+        224
+      ],
+      "id": "48f56ccc-b91d-410d-b8a4-dfdfbef4ce25",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Gmail Trigger').item.json.Subject }}",
+        "message": "={{ $json['Final Draft'] }}",
+        "options": {
+          "sendTo": "={{ $('Gmail Trigger').item.json.From }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "0bcca135-625f-4164-bb63-832bf1e26c8d",
+      "name": "Create a draft",
+      "webhookId": "590b9d0d-f050-410e-8de7-4a9ea2cc9ba3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "6vxFlzfGuL7y8Hxs",
+          "name": "Sumonmia2022"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b44113a4-aa48-4d33-b23f-4d1281c34aa3",
+              "name": "Final Draft",
+              "value": "={{ JSON.parse($json.output.replace(/```json/g, \"\").replace(/```/g, \"\")).draft_reply }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        560,
+        0
+      ],
+      "id": "1eee75cb-f0af-42f6-8c07-d4638284a4a7",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "981c21e2-58a4-4423-9e3b-a57c709dd19e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5f00bba974abf03cb5183d4d65f8a9645a781b04770df6a7d08284fca87d50b3"
+  },
+  "id": "IgEtv57jOyEjwl8F",
+  "tags": []
+}
